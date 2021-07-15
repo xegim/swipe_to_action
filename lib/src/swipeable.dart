@@ -31,6 +31,9 @@ enum SwipeDirection {
   /// The [Swipeable] can be swiped by dragging in the reading direction
   /// (e.g., from left to right in left-to-right languages).
   startToEnd,
+
+  /// Called instead of null.
+  none,
 }
 
 class Swipeable extends StatefulWidget {
@@ -43,12 +46,12 @@ class Swipeable extends StatefulWidget {
   /// state of the dismissed item. Using keys causes the widgets to sync
   /// according to their keys and avoids this pitfall.
   const Swipeable({
-    @required Key key,
-    @required this.child,
+    required Key key,
+    required this.child,
+    required this.onSwipe,
     this.background,
     this.secondaryBackground,
     this.confirmSwipe,
-    this.onSwipe,
     this.direction = SwipeDirection.horizontal,
     this.dismissThresholds = const <SwipeDirection, double>{},
     this.maxOffset = 0.4,
@@ -60,9 +63,7 @@ class Swipeable extends StatefulWidget {
       PointerDeviceKind.stylus,
       PointerDeviceKind.touch
     },
-  })  : assert(key != null),
-        assert(secondaryBackground == null || background != null),
-        assert(dragStartBehavior != null),
+  })  : assert(secondaryBackground == null || background != null),
         super(key: key);
 
   /// The widget below this widget in the tree.
@@ -73,12 +74,12 @@ class Swipeable extends StatefulWidget {
   /// A widget that is stacked behind the child. If secondaryBackground is also
   /// specified then this widget only appears when the child has been dragged
   /// to the right.
-  final Widget background;
+  final Widget? background;
 
   /// A widget that is stacked behind the child and is exposed when the child
   /// has been dragged to the left. It may only be specified when background
   /// has also been specified.
-  final Widget secondaryBackground;
+  final Widget? secondaryBackground;
 
   /// Gives the app an opportunity to confirm or veto a pending dismissal.
   ///
@@ -87,7 +88,7 @@ class Swipeable extends StatefulWidget {
   ///
   /// If the returned Future<bool> completes to false or null the [onSwipe]
   /// callback will not run.
-  final ConfirmSwipeCallback confirmSwipe;
+  final ConfirmSwipeCallback? confirmSwipe;
 
   /// Called when the widget has been dismissed, after finishing resizing.
   final SwipeDirectionCallback onSwipe;
@@ -159,9 +160,8 @@ class Swipeable extends StatefulWidget {
 
 class _SwipeableClipper extends CustomClipper<Rect> {
   _SwipeableClipper({
-    @required this.moveAnimation,
-  })  : assert(moveAnimation != null),
-        super(reclip: moveAnimation);
+    required this.moveAnimation,
+  }) : super(reclip: moveAnimation);
 
   final Animation<Offset> moveAnimation;
 
@@ -185,28 +185,27 @@ class _SwipeableClipper extends CustomClipper<Rect> {
 
 enum _FlingGestureKind { none, forward, reverse }
 
-class _SwipeableState extends State<Swipeable>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   @override
   void initState() {
-    super.initState();
-    _moveController =
-        AnimationController(duration: widget.movementDuration, vsync: this)
-          ..addStatusListener(_handleDismissStatusChanged);
+    _moveController = AnimationController(duration: widget.movementDuration, vsync: this)
+      ..addStatusListener(_handleDismissStatusChanged);
     _updateMoveAnimation();
+
+    super.initState();
   }
 
-  AnimationController _moveController;
-  Animation<Offset> _moveAnimation;
+  late AnimationController _moveController;
+  late Animation<Offset> _moveAnimation;
 
   double _dragExtent = 0.0;
   bool _dragUnderway = false;
-  Size _sizePriorToCollapse;
+  Size? _sizePriorToCollapse;
 
   bool _isTouch = true;
 
   @override
-  bool get wantKeepAlive => _moveController?.isAnimating == true;
+  bool get wantKeepAlive => _moveController.isAnimating == true;
 
   @override
   void dispose() {
@@ -216,20 +215,14 @@ class _SwipeableState extends State<Swipeable>
 
   SwipeDirection _extentToDirection(double extent) {
     if (extent == 0.0) {
-      return null;
+      return SwipeDirection.none;
     }
     switch (Directionality.of(context)) {
       case TextDirection.rtl:
-        return extent < 0
-            ? SwipeDirection.startToEnd
-            : SwipeDirection.endToStart;
+        return extent < 0 ? SwipeDirection.startToEnd : SwipeDirection.endToStart;
       case TextDirection.ltr:
-        return extent > 0
-            ? SwipeDirection.startToEnd
-            : SwipeDirection.endToStart;
+        return extent > 0 ? SwipeDirection.startToEnd : SwipeDirection.endToStart;
     }
-    assert(false);
-    return null;
   }
 
   SwipeDirection get _swipeDirection => _extentToDirection(_dragExtent);
@@ -240,7 +233,7 @@ class _SwipeableState extends State<Swipeable>
 
   double get _overallDragAxisExtent {
     final size = context.size;
-    return size.width;
+    return size?.width ?? 0.0;
   }
 
   void _handlePointerDown(PointerDownEvent event) {
@@ -252,8 +245,7 @@ class _SwipeableState extends State<Swipeable>
   void _handleDragStart(DragStartDetails details) {
     _dragUnderway = true;
     if (_moveController.isAnimating) {
-      _dragExtent =
-          _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
+      _dragExtent = _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
       _moveController.stop();
     } else {
       _dragExtent = 0.0;
@@ -269,9 +261,12 @@ class _SwipeableState extends State<Swipeable>
       return;
     }
 
-    final delta = details.primaryDelta;
+    final delta = details.primaryDelta ?? 0.0;
     final oldDragExtent = _dragExtent;
     switch (widget.direction) {
+      case SwipeDirection.none:
+        return;
+
       case SwipeDirection.horizontal:
         _dragExtent += delta;
         break;
@@ -327,7 +322,6 @@ class _SwipeableState extends State<Swipeable>
   }
 
   _FlingGestureKind _describeFlingGesture(Velocity velocity) {
-    assert(widget.direction != null);
     if (_dragExtent == 0.0) {
       // If it was a fling, then it was a fling that was let loose at the exact
       // middle of the range (i.e. when there's no displacement). In that case,
@@ -340,14 +334,12 @@ class _SwipeableState extends State<Swipeable>
     final vy = velocity.pixelsPerSecond.dy;
     SwipeDirection flingDirection;
     // Verify that the fling is in the generally right direction and fast enough.
-    if (vx.abs() - vy.abs() < _kMinFlingVelocityDelta ||
-        vx.abs() < _kMinFlingVelocity) {
+    if (vx.abs() - vy.abs() < _kMinFlingVelocityDelta || vx.abs() < _kMinFlingVelocity) {
       return _FlingGestureKind.none;
     }
     assert(vx != 0.0);
     flingDirection = _extentToDirection(vx);
 
-    assert(_swipeDirection != null);
     if (flingDirection == _swipeDirection) {
       return _FlingGestureKind.forward;
     }
@@ -359,8 +351,7 @@ class _SwipeableState extends State<Swipeable>
       return;
     }
     _dragUnderway = false;
-    if (_moveController.isCompleted &&
-        await _confirmStartSwipeAnimation() == true) {
+    if (_moveController.isCompleted && await _confirmStartSwipeAnimation() == true) {
       _startSwipeAnimation();
       return;
     }
@@ -369,28 +360,23 @@ class _SwipeableState extends State<Swipeable>
       case _FlingGestureKind.forward:
         assert(_dragExtent != 0.0);
         assert(!_moveController.isDismissed);
-        if ((widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold) >=
-            1.0) {
+        if ((widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold) >= 1.0) {
           await _moveController.reverse();
           break;
         }
         _dragExtent = flingVelocity.sign;
-        await _moveController.fling(
-            velocity: flingVelocity.abs() * _kFlingVelocityScale);
+        await _moveController.fling(velocity: flingVelocity.abs() * _kFlingVelocityScale);
         break;
       case _FlingGestureKind.reverse:
         assert(_dragExtent != 0.0);
         assert(!_moveController.isDismissed);
         _dragExtent = flingVelocity.sign;
-        await _moveController.fling(
-            velocity: -flingVelocity.abs() * _kFlingVelocityScale);
+        await _moveController.fling(velocity: -flingVelocity.abs() * _kFlingVelocityScale);
         break;
       case _FlingGestureKind.none:
         if (!_moveController.isDismissed) {
           // we already know it's not completed, we check that above
-          if (_moveController.value >
-              (widget.dismissThresholds[_swipeDirection] ??
-                  _kDismissThreshold)) {
+          if (_moveController.value > (widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold)) {
             await _moveController.forward();
           } else {
             await _moveController.reverse();
@@ -414,21 +400,18 @@ class _SwipeableState extends State<Swipeable>
   Future<bool> _confirmStartSwipeAnimation() async {
     if (widget.confirmSwipe != null) {
       final direction = _swipeDirection;
-      assert(direction != null);
-      return widget.confirmSwipe(direction);
+      return widget.confirmSwipe!(direction);
     }
     return true;
   }
 
   void _startSwipeAnimation() {
-    assert(_moveController != null);
     assert(_moveController.isCompleted);
     assert(_sizePriorToCollapse == null);
-    if (widget.onSwipe != null) {
-      final direction = _swipeDirection;
-      assert(direction != null);
-      widget.onSwipe(direction);
-    }
+
+    final direction = _swipeDirection;
+    widget.onSwipe(direction);
+
     _moveController.reverse();
   }
 
