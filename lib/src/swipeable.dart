@@ -204,6 +204,9 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
 
   bool _isTouch = true;
 
+  double? _minX;
+  double? _maxX;
+
   @override
   bool get wantKeepAlive => _moveController.isAnimating == true;
 
@@ -237,8 +240,20 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    final xPos = event.position.dx;
+
+    var validTouch = widget.allowedPointerKinds.contains(event.kind);
+
+    if(validTouch && _minX != null){
+      validTouch = xPos > _minX!;
+    }
+
+    if(validTouch && _maxX != null){
+      validTouch = xPos < _maxX!;
+    }
+
     setState(() {
-      _isTouch = widget.allowedPointerKinds.contains(event.kind);
+      _isTouch = validTouch;
     });
   }
 
@@ -426,6 +441,18 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
       final direction = _swipeDirection;
       if (direction == SwipeDirection.endToStart) {
         background = widget.secondaryBackground;
+      }
+    }
+
+    MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery != null) {
+      if(_minX == null || _maxX == null){
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _minX = mediaQuery.systemGestureInsets.left;
+            _maxX = mediaQuery.size.width - mediaQuery.systemGestureInsets.right;
+          });
+        });
       }
     }
 
