@@ -204,6 +204,14 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
 
   bool _isTouch = true;
 
+  // Minimum global X where swipe is allowed to start
+  double? _minX;
+  // Maximum global X where swipe is allowed to start
+  double? _maxX;
+  // Screen width reference that helped to compute _minX and _maxX
+  // used to check if insets should be updated or not
+  double? _widthReference;
+
   @override
   bool get wantKeepAlive => _moveController.isAnimating == true;
 
@@ -237,8 +245,22 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    final xPos = event.position.dx;
+
+    var validTouch = widget.allowedPointerKinds.contains(event.kind);
+
+    // Check if touch was performed after minX and before maxX to avoid system
+    // gesture insets
+    if(validTouch && _minX != null){
+      validTouch = xPos > _minX!;
+    }
+
+    if(validTouch && _maxX != null){
+      validTouch = xPos < _maxX!;
+    }
+
     setState(() {
-      _isTouch = widget.allowedPointerKinds.contains(event.kind);
+      _isTouch = validTouch;
     });
   }
 
@@ -426,6 +448,21 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
       final direction = _swipeDirection;
       if (direction == SwipeDirection.endToStart) {
         background = widget.secondaryBackground;
+      }
+    }
+
+    // Get system screen size and system gesture insets
+    // to avoid starting a swipe in this areas
+    MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery != null) {
+      if(_widthReference == null || _widthReference != mediaQuery.size.width){
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _widthReference = mediaQuery.size.width;
+            _minX = mediaQuery.systemGestureInsets.left;
+            _maxX = mediaQuery.size.width - mediaQuery.systemGestureInsets.right;
+          });
+        });
       }
     }
 
