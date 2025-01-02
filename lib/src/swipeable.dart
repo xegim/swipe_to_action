@@ -208,6 +208,9 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
   double? _minX;
   // Maximum global X where swipe is allowed to start
   double? _maxX;
+  // Screen width reference that helped to compute _minX and _maxX
+  // used to check if insets should be updated or not
+  double? _widthReference;
 
   @override
   bool get wantKeepAlive => _moveController.isAnimating == true;
@@ -452,9 +455,10 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     // to avoid starting a swipe in this areas
     MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
     if (mediaQuery != null) {
-      if(_minX == null || _maxX == null){
+      if(_widthReference == null || _widthReference != mediaQuery.size.width){
         WidgetsBinding.instance.addPostFrameCallback((_) {
           setState(() {
+            _widthReference = mediaQuery.size.width;
             _minX = mediaQuery.systemGestureInsets.left;
             _maxX = mediaQuery.size.width - mediaQuery.systemGestureInsets.right;
           });
