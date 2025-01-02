@@ -46,7 +46,7 @@ class Swipeable extends StatefulWidget {
   /// state of the dismissed item. Using keys causes the widgets to sync
   /// according to their keys and avoids this pitfall.
   const Swipeable({
-    required Key key,
+    required final Key key,
     required this.child,
     required this.onSwipe,
     this.background,
@@ -61,7 +61,7 @@ class Swipeable extends StatefulWidget {
     this.allowedPointerKinds = const {
       PointerDeviceKind.invertedStylus,
       PointerDeviceKind.stylus,
-      PointerDeviceKind.touch
+      PointerDeviceKind.touch,
     },
   })  : assert(secondaryBackground == null || background != null),
         super(key: key);
@@ -155,7 +155,7 @@ class Swipeable extends StatefulWidget {
   final DragStartBehavior dragStartBehavior;
 
   @override
-  _SwipeableState createState() => _SwipeableState();
+  State<Swipeable> createState() => _SwipeableState();
 }
 
 class _SwipeableClipper extends CustomClipper<Rect> {
@@ -166,7 +166,7 @@ class _SwipeableClipper extends CustomClipper<Rect> {
   final Animation<Offset> moveAnimation;
 
   @override
-  Rect getClip(Size size) {
+  Rect getClip(final Size size) {
     final offset = moveAnimation.value.dx * size.width;
     if (offset < 0) {
       return Rect.fromLTRB(size.width + offset, 0.0, size.width, size.height);
@@ -175,21 +175,22 @@ class _SwipeableClipper extends CustomClipper<Rect> {
   }
 
   @override
-  Rect getApproximateClipRect(Size size) => getClip(size);
+  Rect getApproximateClipRect(final Size size) => getClip(size);
 
   @override
-  bool shouldReclip(_SwipeableClipper oldClipper) {
-    return oldClipper.moveAnimation.value != moveAnimation.value;
-  }
+  bool shouldReclip(final _SwipeableClipper oldClipper) =>
+      oldClipper.moveAnimation.value != moveAnimation.value;
 }
 
 enum _FlingGestureKind { none, forward, reverse }
 
-class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class _SwipeableState extends State<Swipeable>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   @override
   void initState() {
-    _moveController = AnimationController(duration: widget.movementDuration, vsync: this)
-      ..addStatusListener(_handleDismissStatusChanged);
+    _moveController =
+        AnimationController(duration: widget.movementDuration, vsync: this)
+          ..addStatusListener(_handleDismissStatusChanged);
     _updateMoveAnimation();
 
     super.initState();
@@ -221,41 +222,43 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     super.dispose();
   }
 
-  SwipeDirection _extentToDirection(double extent) {
+  SwipeDirection _extentToDirection(final double extent) {
     if (extent == 0.0) {
       return SwipeDirection.none;
     }
     switch (Directionality.of(context)) {
       case TextDirection.rtl:
-        return extent < 0 ? SwipeDirection.startToEnd : SwipeDirection.endToStart;
+        return extent < 0
+            ? SwipeDirection.startToEnd
+            : SwipeDirection.endToStart;
       case TextDirection.ltr:
-        return extent > 0 ? SwipeDirection.startToEnd : SwipeDirection.endToStart;
+        return extent > 0
+            ? SwipeDirection.startToEnd
+            : SwipeDirection.endToStart;
     }
   }
 
   SwipeDirection get _swipeDirection => _extentToDirection(_dragExtent);
 
-  bool get _isActive {
-    return _dragUnderway || _moveController.isAnimating;
-  }
+  bool get _isActive => _dragUnderway || _moveController.isAnimating;
 
   double get _overallDragAxisExtent {
     final size = context.size;
     return size?.width ?? 0.0;
   }
 
-  void _handlePointerDown(PointerDownEvent event) {
+  void _handlePointerDown(final PointerDownEvent event) {
     final xPos = event.position.dx;
 
     var validTouch = widget.allowedPointerKinds.contains(event.kind);
 
     // Check if touch was performed after minX and before maxX to avoid system
     // gesture insets
-    if(validTouch && _minX != null){
+    if (validTouch && _minX != null) {
       validTouch = xPos > _minX!;
     }
 
-    if(validTouch && _maxX != null){
+    if (validTouch && _maxX != null) {
       validTouch = xPos < _maxX!;
     }
 
@@ -264,10 +267,11 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     });
   }
 
-  void _handleDragStart(DragStartDetails details) {
+  void _handleDragStart(final DragStartDetails details) {
     _dragUnderway = true;
     if (_moveController.isAnimating) {
-      _dragExtent = _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
+      _dragExtent =
+          _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
       _moveController.stop();
     } else {
       _dragExtent = 0.0;
@@ -278,7 +282,7 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     });
   }
 
-  void _handleDragUpdate(DragUpdateDetails details) {
+  void _handleDragUpdate(final DragUpdateDetails details) {
     if (!_isActive || _moveController.isAnimating) {
       return;
     }
@@ -343,7 +347,7 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     );
   }
 
-  _FlingGestureKind _describeFlingGesture(Velocity velocity) {
+  _FlingGestureKind _describeFlingGesture(final Velocity velocity) {
     if (_dragExtent == 0.0) {
       // If it was a fling, then it was a fling that was let loose at the exact
       // middle of the range (i.e. when there's no displacement). In that case,
@@ -356,7 +360,8 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     final vy = velocity.pixelsPerSecond.dy;
     SwipeDirection flingDirection;
     // Verify that the fling is in the generally right direction and fast enough.
-    if (vx.abs() - vy.abs() < _kMinFlingVelocityDelta || vx.abs() < _kMinFlingVelocity) {
+    if (vx.abs() - vy.abs() < _kMinFlingVelocityDelta ||
+        vx.abs() < _kMinFlingVelocity) {
       return _FlingGestureKind.none;
     }
     assert(vx != 0.0);
@@ -368,12 +373,13 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     return _FlingGestureKind.reverse;
   }
 
-  Future<void> _handleDragEnd(DragEndDetails details) async {
+  Future<void> _handleDragEnd(final DragEndDetails details) async {
     if (!_isActive || _moveController.isAnimating) {
       return;
     }
     _dragUnderway = false;
-    if (_moveController.isCompleted && await _confirmStartSwipeAnimation() == true) {
+    if (_moveController.isCompleted &&
+        await _confirmStartSwipeAnimation() == true) {
       _startSwipeAnimation();
       return;
     }
@@ -382,23 +388,30 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
       case _FlingGestureKind.forward:
         assert(_dragExtent != 0.0);
         assert(!_moveController.isDismissed);
-        if ((widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold) >= 1.0) {
+        if ((widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold) >=
+            1.0) {
           await _moveController.reverse();
           break;
         }
         _dragExtent = flingVelocity.sign;
-        await _moveController.fling(velocity: flingVelocity.abs() * _kFlingVelocityScale);
+        await _moveController.fling(
+          velocity: flingVelocity.abs() * _kFlingVelocityScale,
+        );
         break;
       case _FlingGestureKind.reverse:
         assert(_dragExtent != 0.0);
         assert(!_moveController.isDismissed);
         _dragExtent = flingVelocity.sign;
-        await _moveController.fling(velocity: -flingVelocity.abs() * _kFlingVelocityScale);
+        await _moveController.fling(
+          velocity: -flingVelocity.abs() * _kFlingVelocityScale,
+        );
         break;
       case _FlingGestureKind.none:
         if (!_moveController.isDismissed) {
           // we already know it's not completed, we check that above
-          if (_moveController.value > (widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold)) {
+          if (_moveController.value >
+              (widget.dismissThresholds[_swipeDirection] ??
+                  _kDismissThreshold)) {
             await _moveController.forward();
           } else {
             await _moveController.reverse();
@@ -408,7 +421,7 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     }
   }
 
-  Future<void> _handleDismissStatusChanged(AnimationStatus status) async {
+  Future<void> _handleDismissStatusChanged(final AnimationStatus status) async {
     if (status == AnimationStatus.completed && !_dragUnderway) {
       if (await _confirmStartSwipeAnimation() == true) {
         _startSwipeAnimation();
@@ -438,7 +451,7 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     super.build(context); // See AutomaticKeepAliveClientMixin.
 
     assert(debugCheckHasDirectionality(context));
@@ -453,14 +466,15 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
 
     // Get system screen size and system gesture insets
     // to avoid starting a swipe in this areas
-    MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
+    final MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
     if (mediaQuery != null) {
-      if(_widthReference == null || _widthReference != mediaQuery.size.width){
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_widthReference == null || _widthReference != mediaQuery.size.width) {
+        WidgetsBinding.instance.addPostFrameCallback((final _) {
           setState(() {
             _widthReference = mediaQuery.size.width;
             _minX = mediaQuery.systemGestureInsets.left;
-            _maxX = mediaQuery.size.width - mediaQuery.systemGestureInsets.right;
+            _maxX =
+                mediaQuery.size.width - mediaQuery.systemGestureInsets.right;
           });
         });
       }
@@ -472,18 +486,20 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
     );
 
     if (background != null) {
-      content = Stack(children: <Widget>[
-        if (!_moveAnimation.isDismissed)
-          Positioned.fill(
-            child: ClipRect(
-              clipper: _SwipeableClipper(
-                moveAnimation: _moveAnimation,
+      content = Stack(
+        children: <Widget>[
+          if (!_moveAnimation.isDismissed)
+            Positioned.fill(
+              child: ClipRect(
+                clipper: _SwipeableClipper(
+                  moveAnimation: _moveAnimation,
+                ),
+                child: background,
               ),
-              child: background,
             ),
-          ),
-        content,
-      ]);
+          content,
+        ],
+      );
     }
     // We are not swiping but we may be being dragging in widget.direction.
     return Listener(
@@ -493,8 +509,8 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
         onHorizontalDragUpdate: _isTouch ? _handleDragUpdate : null,
         onHorizontalDragEnd: _isTouch ? _handleDragEnd : null,
         behavior: HitTestBehavior.opaque,
-        child: content,
         dragStartBehavior: widget.dragStartBehavior,
+        child: content,
       ),
     );
   }
