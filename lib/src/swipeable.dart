@@ -204,7 +204,9 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
 
   bool _isTouch = true;
 
+  // Minimum global X where swipe is allowed to start
   double? _minX;
+  // Maximum global X where swipe is allowed to start
   double? _maxX;
 
   @override
@@ -244,6 +246,8 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
 
     var validTouch = widget.allowedPointerKinds.contains(event.kind);
 
+    // Check if touch was performed after minX and before maxX to avoid system
+    // gesture insets
     if(validTouch && _minX != null){
       validTouch = xPos > _minX!;
     }
@@ -444,6 +448,8 @@ class _SwipeableState extends State<Swipeable> with TickerProviderStateMixin, Au
       }
     }
 
+    // Get system screen size and system gesture insets
+    // to avoid starting a swipe in this areas
     MediaQueryData? mediaQuery = MediaQuery.maybeOf(context);
     if (mediaQuery != null) {
       if(_minX == null || _maxX == null){
