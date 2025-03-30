@@ -18,6 +18,7 @@ typedef SwipeDirectionCallback = void Function(SwipeDirection direction);
 ///
 /// Used by [Swipeable.confirmSwipe].
 typedef ConfirmSwipeCallback = Future<bool> Function(SwipeDirection direction);
+typedef ThresholdCallback = void Function(SwipeDirection direction);
 
 /// The direction in which a [Swipeable] can be swiped.
 enum SwipeDirection {
@@ -52,6 +53,7 @@ class Swipeable extends StatefulWidget {
     this.background,
     this.secondaryBackground,
     this.confirmSwipe,
+    this.onThreshold,
     this.direction = SwipeDirection.horizontal,
     this.dismissThresholds = const <SwipeDirection, double>{},
     this.maxOffset = 0.4,
@@ -89,6 +91,7 @@ class Swipeable extends StatefulWidget {
   /// If the returned Future<bool> completes to false or null the [onSwipe]
   /// callback will not run.
   final ConfirmSwipeCallback? confirmSwipe;
+  final ThresholdCallback? onThreshold;
 
   /// Called when the widget has been dismissed, after finishing resizing.
   final SwipeDirectionCallback onSwipe;
@@ -201,6 +204,7 @@ class _SwipeableState extends State<Swipeable>
 
   double _dragExtent = 0.0;
   bool _dragUnderway = false;
+  bool _thresholdCalled = false;
   Size? _sizePriorToCollapse;
 
   bool _isTouch = true;
@@ -269,6 +273,7 @@ class _SwipeableState extends State<Swipeable>
 
   void _handleDragStart(final DragStartDetails details) {
     _dragUnderway = true;
+    _thresholdCalled = false;
     if (_moveController.isAnimating) {
       _dragExtent =
           _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
@@ -287,7 +292,7 @@ class _SwipeableState extends State<Swipeable>
       return;
     }
 
-    final delta = details.primaryDelta ?? 0.0;
+    final delta = 2.0*(details.primaryDelta ?? 0.0);
     final oldDragExtent = _dragExtent;
     switch (widget.direction) {
       case SwipeDirection.none:
@@ -327,6 +332,13 @@ class _SwipeableState extends State<Swipeable>
         }
         break;
     }
+
+    if (widget.onThreshold != null && !_thresholdCalled
+      && (_dragExtent.abs() / _overallDragAxisExtent) > (widget.dismissThresholds[_swipeDirection] ?? _kDismissThreshold)) {
+      widget.onThreshold!(_swipeDirection);
+      _thresholdCalled = true;
+    }
+
     if (oldDragExtent.sign != _dragExtent.sign) {
       setState(() {
         _updateMoveAnimation();
@@ -378,6 +390,7 @@ class _SwipeableState extends State<Swipeable>
       return;
     }
     _dragUnderway = false;
+    _thresholdCalled = false;
     if (_moveController.isCompleted &&
         await _confirmStartSwipeAnimation() == true) {
       _startSwipeAnimation();
